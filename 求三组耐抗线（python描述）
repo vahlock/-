@@ -1,0 +1,115 @@
+import numpy as np
+import pandas as pd
+import math
+import matplotlib.pyplot as plt
+
+# 三组耐抗线函数
+def ThreegroupResistantLine(x,y):
+    n=len(x)
+    if(n%3==1):
+        k=(n-1)/3
+        Ql=k
+        Qm=k+1
+        Qr=k
+    elif(n%3==2):
+        k = (n - 2) / 3
+        Ql = k+1
+        Qm = k
+        Qr = k+1
+    else:
+        k = n/3
+        Ql = k
+        Qm = k
+        Qr = k
+    QQ0=int(Ql)
+    QQ1=int(Ql+Qm)
+    QQ2=int(Ql+Qm+Qr)
+    x1=x[0:QQ0];y1=y[0:QQ0];x2=x[QQ0:QQ1];y2=y[QQ0:QQ1];x3=x[QQ1:QQ2];y3=y[QQ1:QQ2]
+    xL=x1.median();yL=y1.median();xM=x2.median();yM=y2.median();xR=x3.median();yR=y3.median()
+    print("(xL,yL)={}".format((xL,yL)))
+    print("(xM,yM)={}".format((xM, yM)))
+    print("(xR,yR)={}".format((xR, yR)))
+    b0=(yR-yL)/(xR-xL)
+    a0=1/3*((yL-b0*(xL-xM))+yM+(yR-b0*(xR-xM)))
+    print("b0=",b0)
+    print("a0=",a0)
+    while True:
+        r=[]
+        # Mark
+        for (i,j) in zip(range(n),range(n)):
+            rr=y[i]-[a0+b0*(x[i]-xM)]
+            r.append(rr)
+        R=[]
+        for ri in r:
+            rii=ri[0]
+            R.append(rii)
+
+        R=pd.Series(R)
+        x1 = x[0:QQ0]; y1 = R[0:QQ0]; x2 = x[QQ0:QQ1]; y2 = R[QQ0:QQ1];x3 = x[QQ1:QQ2];y3 = R[QQ1:QQ2]
+        xL = x1.median();yL = y1.median();xM = x2.median();yM = y2.median();xR = x3.median();yR = y3.median()
+
+        rb1 = (yR - yL) / (xR - xL)
+        ra1 = 1 / 3 * ((yL - rb1 * (xL - xM)) + yM + (yR - rb1 * (xR - xM)))
+        print("rb1=", rb1)
+        print("ra1=", ra1)
+        b0=b0+rb1
+        a0=a0+ra1
+        rate=abs(rb1/(b0-rb1))
+        print("rate=",rate)
+        print("——————迭代——————")
+        if(rate<=0.01):
+            break
+    b1=b0
+    a1=a0
+    print("b1=",b1) # 输出斜率系数
+    print("a1=",a1) # 输出截距系数
+    return a1,b1,xM
+def R2R(r):
+    n=len(r)
+    s2=0
+    for r in r:
+        s2 = s2 + r ** 2
+    ss=(1/(n-2))*s2
+    s= math.sqrt(ss)
+    return s
+# 求杠杆率
+def Leverage(x):
+    n=len(x)
+    xU=np.mean(x)
+    aa=[]
+    s=0
+    for xi in x:
+        a=(xi-xU)**2
+        aa.append(a)
+        s=s+a
+    aa=pd.Series(aa)
+    h=1/n+aa/s
+    return h
+# 标准化数据
+def myScale(data):
+    mean = sum(data) / len(data)  #先求均值
+    variance = ( sum([ (I-mean) ** 2 for I in data])  ) / len(data)  #再求方差
+    normal = [(I - mean) / (variance ) ** 0.5 for I in data]  #按照公式标准化
+    return normal
+
+def main():
+    df = pd.read_excel(':path\\')
+    x = df['x']
+    y = df['y']
+    a,b,xM=ThreegroupResistantLine(x,y)
+    # 求拟合值
+    yN=b*(x-xM)+a
+    # 求三组耐抗线残差
+    ri=y-yN
+    s=R2R(ri)
+    h=Leverage(x)
+    rs=ri/(s*np.sqrt(1-h))
+    print('r=',ri)   # 输出原始残差
+    print('s=',s)    # 输出残差平方和
+    print('h=',h)    # 输出杠杆率
+    print('rs=',rs)   # 输出标准化残差
+    # 作数据观测值散点图，以及三组耐抗拟合图
+    plt.plot(x, y, 'o')
+    plt.plot(x, yN)
+    plt.show()
+main()
